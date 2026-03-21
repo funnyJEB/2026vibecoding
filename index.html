@@ -19,8 +19,8 @@
         .student-link.active { background: #007bff; color: white; font-weight: bold; border-color: #0056b3; }
         .student-link .app-title { display: block; font-size: 0.85em; font-weight: normal; margin-top: 4px; opacity: 0.9; }
 
-        /* 오른쪽 메인 영역 (스크롤 문제 해결을 위해 min-height: 0 추가) */
-        #content-area { flex-grow: 1; display: flex; flex-direction: column; background: #f8f9fa; min-height: 0; min-width: 0; }
+        /* 오른쪽 메인 영역 */
+        #content-area { flex-grow: 1; display: flex; flex-direction: column; background: #f8f9fa; height: 100vh; }
         
         #app-info { padding: 20px 30px; background: #ffffff; border-bottom: 1px solid #ddd; display: none; box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 10; flex-shrink: 0; position: relative; }
         #app-info h1 { margin: 0 0 10px 0; font-size: 1.5em; color: #212529; padding-right: 150px; }
@@ -29,15 +29,29 @@
         .info-box h3 { margin: 0 0 5px 0; font-size: 0.9em; color: #495057; }
         .info-box p { margin: 0; font-size: 0.95em; color: #212529; line-height: 1.5; }
 
-        /* 새 창 열기 버튼 스타일 */
         .btn-fullscreen { position: absolute; top: 20px; right: 30px; background-color: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .btn-fullscreen:hover { background-color: #218838; transform: translateY(-1px); }
 
-        /* iframe 컨테이너 (스크롤바 생성의 핵심 영역) */
-        #iframe-container { flex-grow: 1; padding: 15px; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; }
-        #viewer-frame { width: 100%; flex-grow: 1; border: 1px solid #ccc; border-radius: 8px; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: none; }
+        /* 💡 수정된 부분: 프레임 레이아웃 절대 고정 (가장 안정적인 방식) */
+        #iframe-container { 
+            position: relative; 
+            flex-grow: 1; 
+            margin: 20px; 
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        #viewer-frame { 
+            position: absolute; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%; 
+            border: none; 
+            border-radius: 8px;
+            display: none; 
+        }
         
-        .placeholder { display: flex; justify-content: center; align-items: center; height: 100%; color: #6c757d; flex-direction: column; gap: 15px; text-align: center; }
+        .placeholder { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; color: #6c757d; flex-direction: column; gap: 15px; text-align: center; }
     </style>
 </head>
 <body>
@@ -76,7 +90,7 @@
     </div>
 
     <script>
-        let currentBlobUrl = ""; // 현재 실행 중인 앱의 URL을 저장
+        let currentBlobUrl = ""; 
 
         document.addEventListener('DOMContentLoaded', () => {
             const listContainer = document.getElementById('student-list');
@@ -85,11 +99,8 @@
             const appInfoPanel = document.getElementById('app-info');
             const btnFullscreen = document.getElementById('btn-fullscreen');
             
-            // 새 창 열기 버튼 이벤트
             btnFullscreen.addEventListener('click', () => {
-                if(currentBlobUrl) {
-                    window.open(currentBlobUrl, '_blank');
-                }
+                if(currentBlobUrl) { window.open(currentBlobUrl, '_blank'); }
             });
 
             Papa.parse("data.csv", {
@@ -140,12 +151,27 @@
                 placeholder.style.display = 'none';
                 iframe.style.display = 'block';
 
-                // 이전 메모리 해제 (성능 최적화)
                 if (currentBlobUrl) {
                     URL.revokeObjectURL(currentBlobUrl);
                 }
 
-                const blob = new Blob([code], { type: 'text/html;charset=utf-8' });
+                // 💡 수정된 핵심 부분: 학생 코드에 스크롤 및 여백을 강제하는 CSS 주입
+                const injectedCSS = `
+                    <style>
+                        /* 스크롤바 강제 활성화 및 하단 잘림 방지용 여백 추가 */
+                        html, body { overflow-y: auto !important; height: auto !important; min-height: 100% !important; }
+                        body { padding-bottom: 50px !important; }
+                    </style>
+                `;
+                
+                let finalCode = code;
+                if(finalCode.includes('</head>')) {
+                    finalCode = finalCode.replace('</head>', injectedCSS + '</head>');
+                } else {
+                    finalCode += injectedCSS; // head가 없으면 코드 맨 끝에라도 붙임
+                }
+
+                const blob = new Blob([finalCode], { type: 'text/html;charset=utf-8' });
                 currentBlobUrl = URL.createObjectURL(blob);
                 iframe.src = currentBlobUrl;
             }
