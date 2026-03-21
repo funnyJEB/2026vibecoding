@@ -1,0 +1,367 @@
+"타임스탬프","학번","이름","완성한 앱 이름","앱 기능 및 장점 소개","소감: 앱 제작 시 어려웠던 점이나 흥미로운점 등","최종 코드를 여기에 모두 복사하세요"
+"2026/03/21 5:29:48 PM GMT+9","22222","테스트","테스트용앱","아주 좋은 장점","재미있었다","<!DOCTYPE html>
+<html lang=""ko"">
+<head>
+    <meta charset=""UTF-8"">
+    <title>오늘의 돌림판 주가변동</title>
+    
+    <link rel=""preconnect"" href=""https://fonts.googleapis.com"">
+    <link rel=""preconnect"" href=""https://fonts.gstatic.com"" crossorigin>
+    <link rel=""preconnect"" href=""https://cdn.jsdelivr.net"">
+    
+    <link href=""https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@700;900&display=swap"" rel=""stylesheet"">
+    
+    <style>
+        /* 3. 눈누 폰트에 font-display: swap을 추가하여 폰트 다운로드 전에도 화면이 먼저 뜨도록 조치 */
+        @font-face {
+            font-family: 'GmarketSansBold';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansBold.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap; 
+        }
+
+        :root {
+            --bg-color: #fcfcfc;
+            --panel-color: #ffffff;
+            --primary-red: #e74c3c;
+            --primary-blue: #3498db;
+            --text-dark: #2c3e50;
+            --text-gray: #7f8c8d;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', 'Pretendard', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            overflow: hidden;
+
+            background-image: url(""data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100px' height='100px' viewBox='0 0 100 100' xml:space='preserve'%3E%3Cpolyline fill='none' stroke='%23f1f3f5' stroke-width='0.5' points='0,80 15,75 30,85 45,60 60,65 75,30 90,40 100,20'/%3E%3Cpolyline fill='none' stroke='%23f1f3f5' stroke-width='0.2' points='0,90 20,88 40,95 60,70 80,75 100,50'/%3E%3C/svg%3E"");
+            background-repeat: repeat;
+        }
+
+        .header-panel {
+            background: var(--panel-color);
+            padding: 20px 40px;
+            border-radius: 18px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border: 1px solid #eee;
+            z-index: 5;
+        }
+
+        /* 요청하신 라벨 글씨 1.5배(2.1rem) 확대 */
+        .header-panel label { 
+            font-family: 'GmarketSansBold', sans-serif;
+            font-size: 2.1rem; 
+            color: #2d3436; 
+            letter-spacing: 1px;
+        }
+        
+        input[type=""number""] {
+            padding: 10px 15px;
+            font-family: 'GmarketSansBold', sans-serif;
+            font-size: 2.2rem;
+            width: 190px;
+            border: 3px solid #dfe6e9;
+            border-radius: 12px;
+            text-align: right;
+            color: var(--primary-red);
+            transition: border-color 0.2s;
+        }
+        input[type=""number""]:focus { border-color: #2d3436; outline: none; }
+
+        h1 { 
+            font-size: 2.2rem; 
+            margin: 10px 0 35px; 
+            letter-spacing: -1.5px; 
+            z-index: 5; 
+            font-weight: 900; 
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .title-up { color: var(--primary-blue); font-size: 1.8rem; }
+        .title-down { color: var(--primary-red); font-size: 1.8rem; }
+
+        .roulette-container {
+            position: relative;
+            width: 500px;
+            height: 500px;
+            filter: drop-shadow(0 15px 30px rgba(0,0,0,0.15));
+            z-index: 5;
+        }
+
+        .arrow {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0; height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 45px solid #d63031;
+            z-index: 10;
+        }
+
+        canvas {
+            border: 10px solid #2d3436;
+            border-radius: 50%;
+            transition: transform 7.5s cubic-bezier(0.1, 0, 0.1, 1);
+        }
+
+        .btn-spin {
+            margin-top: 40px;
+            padding: 20px 80px;
+            font-family: 'GmarketSansBold', sans-serif;
+            font-size: 2rem;
+            letter-spacing: 2px;
+            color: #fff;
+            background: #2d3436;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+            z-index: 5;
+        }
+        .btn-spin:hover { background: #000; transform: translateY(-3px); box-shadow: 0 12px 25px rgba(0,0,0,0.3); }
+        .btn-spin:active { transform: translateY(-1px); }
+
+        #result-popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.5);
+            width: 550px;
+            padding: 60px 40px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 0 120px rgba(0,0,0,0.2);
+            text-align: center;
+            z-index: 100;
+            opacity: 0;
+            transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 3px solid #2d3436;
+        }
+
+        #result-popup.show { display: block; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+        .popup-title { font-size: 1.3rem; color: var(--text-gray); margin-bottom: 25px; font-weight: 900; }
+        
+        .result-display-container {
+            display: flex;
+            justify-content: center;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 40px;
+        }
+
+        .final-price { font-family: 'GmarketSansBold', sans-serif; font-size: 4.5rem; color: var(--text-dark); }
+        .change-info { font-family: 'GmarketSansBold', sans-serif; font-size: 2rem; }
+        .unit-label { font-family: 'GmarketSansBold', sans-serif; font-size: 2rem; color: #999; margin-left: 5px; }
+
+        .up { color: var(--primary-red); }
+        .down { color: var(--primary-blue); }
+
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(6px);
+            z-index: 90;
+        }
+
+        .btn-close {
+            padding: 15px 80px;
+            font-family: 'GmarketSansBold', sans-serif;
+            font-size: 1.5rem;
+            background: #2d3436; color: white;
+            border: none; border-radius: 15px; cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-close:hover { background: #000; }
+    </style>
+</head>
+<body>
+
+    <div class=""header-panel"">
+        <label>현재 주가</label>
+        <input type=""number"" id=""currentPrice"" value="""">
+        <label>P</label>
+    </div>
+
+    <h1><span class=""title-down"">▲</span> 오늘의 돌림판 주가변동 <span class=""title-up"">▼</span></h1>
+    
+    <div class=""roulette-container"">
+        <div class=""arrow""></div>
+        <canvas id=""rouletteCanvas"" width=""500"" height=""500""></canvas>
+    </div>
+
+    <button class=""btn-spin"" onclick=""spin()"">오늘의 주가 확인!</button>
+
+    <div id=""overlay""></div>
+    <div id=""result-popup"">
+        <div class=""popup-title"">주가 변동 결과</div>
+        
+        <div class=""result-display-container"">
+            <span id=""finalPrice"" class=""final-price"">0</span>
+            <span class=""unit-label"">P</span>
+            <span id=""changeInfo"" class=""change-info"">
+                (<span id=""triangle"">▲</span><span id=""diffValue"">0</span>)
+            </span>
+        </div>
+        
+        <button class=""btn-close"" onclick=""closePopup()"">닫기</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('rouletteCanvas');
+        const ctx = canvas.getContext('2d');
+        const popup = document.getElementById('result-popup');
+        const overlay = document.getElementById('overlay');
+        
+        let items = [
+            { label: '+15%', weight: 1, color: '#e84118', type: 'percent', val: 0.15 },
+            { label: '-15%', weight: 1, color: '#273c75', type: 'percent', val: -0.15 },
+            { label: '+5%', weight: 5, color: '#e1b12c', type: 'percent', val: 0.05 },
+            { label: '-5%', weight: 5, color: '#00a8ff', type: 'percent', val: -0.05 },
+            { label: '+3', weight: 12.5, color: '#44bd32', type: 'value', val: 3 },
+            { label: '-3', weight: 12.5, color: '#8c7ae6', type: 'value', val: -3 },
+            { label: '+2', weight: 15, color: '#e84393', type: 'value', val: 2 },
+            { label: '-2', weight: 15, color: '#0097e6', type: 'value', val: -2 },
+            { label: '+1', weight: 16.5, color: '#fbc531', type: 'value', val: 1 },
+            { label: '-1', weight: 16.5, color: '#718093', type: 'value', val: -1 }
+        ];
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+        shuffle(items);
+
+        let isSpinning = false;
+        let currentRotation = 0;
+
+        function draw() {
+            let currentAngle = -Math.PI / 2;
+            items.forEach((item) => {
+                const arc = (item.weight / 100) * (2 * Math.PI);
+                
+                ctx.beginPath();
+                ctx.fillStyle = item.color;
+                ctx.moveTo(250, 250);
+                ctx.arc(250, 250, 250, currentAngle, currentAngle + arc);
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                ctx.save();
+                ctx.translate(250, 250);
+                ctx.rotate(currentAngle + arc / 2);
+                ctx.textAlign = ""right"";
+                
+                ctx.fillStyle = ""#ffffff"";
+                ctx.shadowColor = ""rgba(0, 0, 0, 0.6)"";
+                ctx.shadowBlur = 4;
+                ctx.shadowOffsetX = 1;
+                ctx.shadowOffsetY = 1;
+                
+                ctx.font = item.weight < 5 ? ""900 14px 'Noto Sans KR'"" : ""900 22px 'Noto Sans KR'"";
+                ctx.fillText(item.label, 230, 8);
+                ctx.restore();
+                
+                currentAngle += arc;
+            });
+        }
+
+        function spin() {
+            if (isSpinning) return;
+            isSpinning = true;
+
+            const basePrice = parseFloat(document.getElementById('currentPrice').value) || 0;
+            const random = Math.random() * 100;
+            let cumulativeWeight = 0;
+            let selectedItem = null;
+            let selectedIdx = 0;
+
+            for (let i = 0; i < items.length; i++) {
+                if (random >= cumulativeWeight && random < cumulativeWeight + items[i].weight) {
+                    selectedItem = items[i];
+                    selectedIdx = i;
+                    break;
+                }
+                cumulativeWeight += items[i].weight;
+            }
+
+            let targetWeightPos = 0;
+            for(let j=0; j<selectedIdx; j++) {
+                targetWeightPos += items[j].weight;
+            }
+            const itemArc = (selectedItem.weight / 100) * 360;
+            const offset = Math.random() * (itemArc * 0.8) + (itemArc * 0.1); 
+            
+            const rotationToAdd = (10 * 360) + (360 - ((targetWeightPos / 100 * 360 + offset) % 360));
+            currentRotation += rotationToAdd;
+            
+            canvas.style.transform = `rotate(${currentRotation}deg)`;
+
+            let change = 0;
+            if (selectedItem.type === 'percent') {
+                change = Math.round(basePrice * selectedItem.val);
+            } else {
+                change = selectedItem.val;
+            }
+            const finalPrice = basePrice + change;
+
+            setTimeout(() => { showPopup(finalPrice, change); }, 7700);
+        }
+
+        function showPopup(final, diff) {
+            const finalEl = document.getElementById('finalPrice');
+            const changeInfoEl = document.getElementById('changeInfo');
+            const triangleEl = document.getElementById('triangle');
+            const diffValueEl = document.getElementById('diffValue');
+
+            finalEl.innerText = final.toLocaleString();
+            diffValueEl.innerText = Math.abs(diff).toLocaleString();
+            
+            if (diff >= 0) {
+                changeInfoEl.className = 'change-info up';
+                triangleEl.innerText = '▲';
+            } else {
+                changeInfoEl.className = 'change-info down';
+                triangleEl.innerText = '▼';
+            }
+
+            overlay.style.display = 'block';
+            popup.style.display = 'block';
+            setTimeout(() => popup.classList.add('show'), 10);
+            isSpinning = false;
+        }
+
+        function closePopup() {
+            popup.classList.remove('show');
+            overlay.style.display = 'none';
+            setTimeout(() => { popup.style.display = 'none'; }, 600);
+        }
+
+        draw();
+    </script>
+</body>
+</html>"
