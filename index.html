@@ -8,8 +8,8 @@
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; background-color: #f8f9fa; }
         
-        /* 왼쪽 사이드바: 학생 목록 */
-        #sidebar { width: 280px; background: #ffffff; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
+        /* 왼쪽 사이드바 */
+        #sidebar { width: 280px; background: #ffffff; border-right: 1px solid #ddd; display: flex; flex-direction: column; flex-shrink: 0; }
         #sidebar-header { padding: 20px; border-bottom: 2px solid #007bff; background: #f1f7ff; }
         #sidebar-header h2 { margin: 0; font-size: 1.2em; color: #0056b3; }
         #student-list { flex-grow: 1; overflow-y: auto; padding: 10px; }
@@ -19,20 +19,25 @@
         .student-link.active { background: #007bff; color: white; font-weight: bold; border-color: #0056b3; }
         .student-link .app-title { display: block; font-size: 0.85em; font-weight: normal; margin-top: 4px; opacity: 0.9; }
 
-        /* 오른쪽 메인 영역: 앱 정보 및 실행 화면 */
-        #content-area { flex-grow: 1; display: flex; flex-direction: column; background: #f8f9fa; }
+        /* 오른쪽 메인 영역 (스크롤 문제 해결을 위해 min-height: 0 추가) */
+        #content-area { flex-grow: 1; display: flex; flex-direction: column; background: #f8f9fa; min-height: 0; min-width: 0; }
         
-        #app-info { padding: 20px 30px; background: #ffffff; border-bottom: 1px solid #ddd; display: none; box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 10; }
-        #app-info h1 { margin: 0 0 10px 0; font-size: 1.5em; color: #212529; }
-        .info-box { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #e9ecef; }
+        #app-info { padding: 20px 30px; background: #ffffff; border-bottom: 1px solid #ddd; display: none; box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 10; flex-shrink: 0; position: relative; }
+        #app-info h1 { margin: 0 0 10px 0; font-size: 1.5em; color: #212529; padding-right: 150px; }
+        
+        .info-box { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 5px; border: 1px solid #e9ecef; }
         .info-box h3 { margin: 0 0 5px 0; font-size: 0.9em; color: #495057; }
         .info-box p { margin: 0; font-size: 0.95em; color: #212529; line-height: 1.5; }
 
-        #iframe-container { flex-grow: 1; position: relative; padding: 20px; }
-        #viewer-frame { width: 100%; height: 100%; border: 1px solid #ccc; border-radius: 8px; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: none; }
+        /* 새 창 열기 버튼 스타일 */
+        .btn-fullscreen { position: absolute; top: 20px; right: 30px; background-color: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn-fullscreen:hover { background-color: #218838; transform: translateY(-1px); }
+
+        /* iframe 컨테이너 (스크롤바 생성의 핵심 영역) */
+        #iframe-container { flex-grow: 1; padding: 15px; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; }
+        #viewer-frame { width: 100%; flex-grow: 1; border: 1px solid #ccc; border-radius: 8px; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: none; }
         
         .placeholder { display: flex; justify-content: center; align-items: center; height: 100%; color: #6c757d; flex-direction: column; gap: 15px; text-align: center; }
-        .loading { color: #007bff; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -42,20 +47,20 @@
             <h2>🚀 제출된 프로젝트</h2>
             <div style="font-size: 0.8em; color: #666; margin-top: 5px;" id="total-count">데이터 불러오는 중...</div>
         </div>
-        <div id="student-list">
-            </div>
+        <div id="student-list"></div>
     </div>
 
     <div id="content-area">
         <div id="app-info">
             <h1 id="display-title">작품 제목</h1>
+            <button id="btn-fullscreen" class="btn-fullscreen">↗ 새 창에서 크게 보기</button>
             <div style="display: flex; gap: 15px;">
                 <div class="info-box" style="flex: 1;">
                     <h3>💡 앱 기능 및 장점</h3>
                     <p id="display-desc"></p>
                 </div>
                 <div class="info-box" style="flex: 1;">
-                    <h3>📝 제작 소감 (어려웠던 점 등)</h3>
+                    <h3>📝 제작 소감</h3>
                     <p id="display-review"></p>
                 </div>
             </div>
@@ -66,38 +71,43 @@
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
                 <span>왼쪽 목록에서 친구의 이름을 클릭하면<br>웹앱이 이곳에 실행됩니다.</span>
             </div>
-            <iframe id="viewer-frame" sandbox="allow-scripts allow-same-origin"></iframe>
+            <iframe id="viewer-frame" sandbox="allow-scripts allow-same-origin allow-modals" scrolling="auto"></iframe>
         </div>
     </div>
 
     <script>
+        let currentBlobUrl = ""; // 현재 실행 중인 앱의 URL을 저장
+
         document.addEventListener('DOMContentLoaded', () => {
             const listContainer = document.getElementById('student-list');
             const iframe = document.getElementById('viewer-frame');
             const placeholder = document.getElementById('placeholder-text');
             const appInfoPanel = document.getElementById('app-info');
+            const btnFullscreen = document.getElementById('btn-fullscreen');
             
-            // CSV 파일 읽기 시작
+            // 새 창 열기 버튼 이벤트
+            btnFullscreen.addEventListener('click', () => {
+                if(currentBlobUrl) {
+                    window.open(currentBlobUrl, '_blank');
+                }
+            });
+
             Papa.parse("data.csv", {
                 download: true,
-                header: false, // 배열 인덱스로 접근하기 위해 false 설정
+                header: false,
                 skipEmptyLines: true,
                 complete: function(results) {
                     const rows = results.data;
-                    
-                    // 첫 번째 줄(질문 헤더) 제외하고 데이터만 필터링 (학번이 있는 줄만)
                     const students = rows.filter((row, index) => index > 0 && row[1]); 
                     
                     document.getElementById('total-count').innerText = `총 ${students.length}개의 작품`;
 
                     if(students.length === 0) {
-                        listContainer.innerHTML = '<p style="padding:15px; color:#dc3545;">데이터가 없거나 data.csv 파일을 찾을 수 없습니다.</p>';
+                        listContainer.innerHTML = '<p style="padding:15px; color:#dc3545;">데이터가 없습니다.</p>';
                         return;
                     }
 
-                    // 학생별 버튼 생성
-                    students.forEach((row, index) => {
-                        // 설문지 컬럼 순서 (0:타임스탬프, 1:학번, 2:이름, 3:앱이름, 4:소개, 5:소감, 6:코드)
+                    students.forEach((row) => {
                         const studentId = row[1] || '학번없음';
                         const studentName = row[2] || '이름없음';
                         const appName = row[3] || '제목없음';
@@ -113,18 +123,15 @@
                         listContainer.appendChild(a);
                     });
                 },
-                error: function(err) {
-                    listContainer.innerHTML = `<p style="color:red; padding:15px;">CSV 파일을 불러오지 못했습니다.<br>data.csv 파일이 깃허브에 잘 올라갔는지 확인해주세요.</p>`;
+                error: function() {
+                    listContainer.innerHTML = `<p style="color:red; padding:15px;">CSV 파일을 불러오지 못했습니다.</p>`;
                 }
             });
 
-            // 웹앱 실행 및 정보 표시 함수
             function loadApp(element, id, name, title, desc, review, code) {
-                // 활성화 스타일 변경
                 document.querySelectorAll('.student-link').forEach(el => el.classList.remove('active'));
                 element.classList.add('active');
 
-                // 상단 정보 업데이트
                 document.getElementById('display-title').innerText = `[${id} ${name}] ${title}`;
                 document.getElementById('display-desc').innerText = desc;
                 document.getElementById('display-review').innerText = review;
@@ -133,9 +140,14 @@
                 placeholder.style.display = 'none';
                 iframe.style.display = 'block';
 
-                // 코드를 Blob URL로 변환하여 iframe에 주입 (스크립트 충돌 방지 및 안전한 실행)
+                // 이전 메모리 해제 (성능 최적화)
+                if (currentBlobUrl) {
+                    URL.revokeObjectURL(currentBlobUrl);
+                }
+
                 const blob = new Blob([code], { type: 'text/html;charset=utf-8' });
-                iframe.src = URL.createObjectURL(blob);
+                currentBlobUrl = URL.createObjectURL(blob);
+                iframe.src = currentBlobUrl;
             }
         });
     </script>
