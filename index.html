@@ -107,6 +107,7 @@
                 download: true,
                 header: false,
                 skipEmptyLines: true,
+                encoding: "UTF-8",
                 complete: function(results) {
                     const rows = results.data;
                     const students = rows.filter((row, index) => index > 0 && row[1]); 
