@@ -32,7 +32,7 @@
         .btn-fullscreen { position: absolute; top: 20px; right: 30px; background-color: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .btn-fullscreen:hover { background-color: #218838; transform: translateY(-1px); }
 
-        /* 💡 수정된 부분: 프레임 레이아웃 절대 고정 (가장 안정적인 방식) */
+        /* 프레임 레이아웃 절대 고정 */
         #iframe-container { 
             position: relative; 
             flex-grow: 1; 
@@ -103,11 +103,15 @@
                 if(currentBlobUrl) { window.open(currentBlobUrl, '_blank'); }
             });
 
-            Papa.parse("data.csv", {
+            // 💡 보완: 구글 시트 주소 뒤에 접속 시간을 붙여 무조건 최신 데이터를 가져오게 강제함 (캐시 방지)
+            const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSqYyi8F-ajekfGMyhw4eAcigaoXlk6XH0e9sisIywcakod4CvILxyojPcfKW9fSkH_lfivlT5DFaHn/pub?gid=1968172843&single=true&output=csv";
+            const fetchUrl = sheetUrl + "&v=" + new Date().getTime();
+
+            Papa.parse(fetchUrl, {
                 download: true,
                 header: false,
                 skipEmptyLines: true,
-                encoding: "EUC-KR",
+                // EUC-KR 설정 삭제 (구글 링크는 기본적으로 UTF-8이므로 충돌을 막기 위해 제거)
                 complete: function(results) {
                     const rows = results.data;
                     const students = rows.filter((row, index) => index > 0 && row[1]); 
@@ -136,7 +140,7 @@
                     });
                 },
                 error: function() {
-                    listContainer.innerHTML = `<p style="color:red; padding:15px;">CSV 파일을 불러오지 못했습니다.</p>`;
+                    listContainer.innerHTML = `<p style="color:red; padding:15px;">데이터를 불러오지 못했습니다. 링크를 확인해 주세요.</p>`;
                 }
             });
 
@@ -156,7 +160,6 @@
                     URL.revokeObjectURL(currentBlobUrl);
                 }
 
-                // 💡 수정된 핵심 부분: 학생 코드에 스크롤 및 여백을 강제하는 CSS 주입
                 const injectedCSS = `
                     <style>
                         /* 스크롤바 강제 활성화 및 하단 잘림 방지용 여백 추가 */
@@ -169,7 +172,7 @@
                 if(finalCode.includes('</head>')) {
                     finalCode = finalCode.replace('</head>', injectedCSS + '</head>');
                 } else {
-                    finalCode += injectedCSS; // head가 없으면 코드 맨 끝에라도 붙임
+                    finalCode += injectedCSS;
                 }
 
                 const blob = new Blob([finalCode], { type: 'text/html;charset=utf-8' });
