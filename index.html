@@ -8,7 +8,6 @@
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; background-color: #f8f9fa; }
         
-        /* 왼쪽 사이드바 */
         #sidebar { width: 280px; background: #ffffff; border-right: 1px solid #ddd; display: flex; flex-direction: column; flex-shrink: 0; }
         #sidebar-header { padding: 20px; border-bottom: 2px solid #007bff; background: #f1f7ff; }
         #sidebar-header h2 { margin: 0; font-size: 1.2em; color: #0056b3; }
@@ -19,7 +18,6 @@
         .student-link.active { background: #007bff; color: white; font-weight: bold; border-color: #0056b3; }
         .student-link .app-title { display: block; font-size: 0.85em; font-weight: normal; margin-top: 4px; opacity: 0.9; }
 
-        /* 오른쪽 메인 영역 */
         #content-area { flex-grow: 1; display: flex; flex-direction: column; background: #f8f9fa; height: 100vh; }
         
         #app-info { padding: 20px 30px; background: #ffffff; border-bottom: 1px solid #ddd; display: none; box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 10; flex-shrink: 0; position: relative; }
@@ -32,24 +30,8 @@
         .btn-fullscreen { position: absolute; top: 20px; right: 30px; background-color: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-size: 0.95em; font-weight: bold; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .btn-fullscreen:hover { background-color: #218838; transform: translateY(-1px); }
 
-        /* 프레임 레이아웃 절대 고정 */
-        #iframe-container { 
-            position: relative; 
-            flex-grow: 1; 
-            margin: 20px; 
-            background: #fff;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        #viewer-frame { 
-            position: absolute; 
-            top: 0; left: 0; 
-            width: 100%; height: 100%; 
-            border: none; 
-            border-radius: 8px;
-            display: none; 
-        }
+        #iframe-container { position: relative; flex-grow: 1; margin: 20px; background: #fff; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        #viewer-frame { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; border-radius: 8px; display: none; }
         
         .placeholder { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; color: #6c757d; flex-direction: column; gap: 15px; text-align: center; }
     </style>
@@ -103,7 +85,7 @@
                 if(currentBlobUrl) { window.open(currentBlobUrl, '_blank'); }
             });
 
-            // 💡 보완: 구글 시트 주소 뒤에 접속 시간을 붙여 무조건 최신 데이터를 가져오게 강제함 (캐시 방지)
+            // 구글 시트 주소 (캐시 방지용 시간 추가)
             const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSqYyi8F-ajekfGMyhw4eAcigaoXlk6XH0e9sisIywcakod4CvILxyojPcfKW9fSkH_lfivlT5DFaHn/pub?gid=1968172843&single=true&output=csv";
             const fetchUrl = sheetUrl + "&v=" + new Date().getTime();
 
@@ -111,11 +93,24 @@
                 download: true,
                 header: false,
                 skipEmptyLines: true,
-                // EUC-KR 설정 삭제 (구글 링크는 기본적으로 UTF-8이므로 충돌을 막기 위해 제거)
                 complete: function(results) {
                     const rows = results.data;
-                    const students = rows.filter((row, index) => index > 0 && row[1]); 
                     
+                    // 1. 헤더(첫 줄) 제외 및 빈 줄/학번 없는 데이터 필터링
+                    let validRows = rows.filter((row, index) => index > 0 && row[1] && String(row[1]).trim() !== "");
+
+                    // 2. 한 학생이 여러 번 제출한 경우 항상 최신(마지막) 데이터 1개만 남기기
+                    const latestMap = new Map();
+                    validRows.forEach(row => {
+                        const studentId = String(row[1]).trim();
+                        // 맵(Map)의 특성상 동일 학번이 나오면 자동으로 덮어쓰기 되므로 최신본이 남습니다.
+                        latestMap.set(studentId, row);
+                    });
+                    validRows = Array.from(latestMap.values());
+
+                    // 3. 학번 오름차순 정렬 (출석부 순서)
+                    const students = validRows.sort((a, b) => String(a[1]).localeCompare(String(b[1])));
+
                     document.getElementById('total-count').innerText = `총 ${students.length}개의 작품`;
 
                     if(students.length === 0) {
@@ -162,13 +157,12 @@
 
                 const injectedCSS = `
                     <style>
-                        /* 스크롤바 강제 활성화 및 하단 잘림 방지용 여백 추가 */
                         html, body { overflow-y: auto !important; height: auto !important; min-height: 100% !important; }
                         body { padding-bottom: 50px !important; }
                     </style>
                 `;
                 
-                let finalCode = code;
+                let finalCode = code || '';
                 if(finalCode.includes('</head>')) {
                     finalCode = finalCode.replace('</head>', injectedCSS + '</head>');
                 } else {
