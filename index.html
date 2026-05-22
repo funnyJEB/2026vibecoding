@@ -157,7 +157,8 @@
 
                 const injectedCSS = `
                     <style>
-                        html, body { overflow-y: auto !important; height: auto !important; min-height: 100% !important; }
+                        /* 긴 웹페이지와 전체화면 게임(Absolute) 모두 호환되도록 수정 */
+                        html, body { overflow-y: auto !important; min-height: 100vh !important; }
                         body { padding-bottom: 50px !important; }
                     </style>
                 `;
