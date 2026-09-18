@@ -67,23 +67,23 @@
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
                 <span id="status-message">왼쪽 목록에서 친구의 이름을 클릭하면<br>웹앱이 이곳에 실행됩니다.</span>
             </div>
-            <iframe id="viewer-frame" sandbox="allow-scripts allow-same-origin allow-modals" scrolling="auto"></iframe>
+            <!-- 구글 드라이브 preview를 띄우는 iframe -->
+            <iframe id="viewer-frame" allow="autoplay"></iframe>
         </div>
     </div>
 
     <script>
-        let currentBlobUrl = ""; 
+        let currentDirectUrl = ""; 
 
         document.addEventListener('DOMContentLoaded', () => {
             const listContainer = document.getElementById('student-list');
             const iframe = document.getElementById('viewer-frame');
             const placeholder = document.getElementById('placeholder-text');
-            const statusMessage = document.getElementById('status-message');
             const appInfoPanel = document.getElementById('app-info');
             const btnFullscreen = document.getElementById('btn-fullscreen');
             
             btnFullscreen.addEventListener('click', () => {
-                if(currentBlobUrl) { window.open(currentBlobUrl, '_blank'); }
+                if(currentDirectUrl) { window.open(currentDirectUrl, '_blank'); }
             });
 
             // 구글 시트 웹 게시 주소
@@ -100,7 +100,7 @@
                     // 1. 헤더 제외 및 유효 데이터 필터링
                     let validRows = rows.filter((row, index) => index > 0 && row[1] && String(row[1]).trim() !== "");
 
-                    // 2. 한 학생당 최신 1개만 남기기 (덮어쓰기)
+                    // 2. 한 학생당 최신 1개만 남기기
                     const latestMap = new Map();
                     validRows.forEach(row => {
                         const studentId = String(row[1]).trim();
@@ -124,13 +124,13 @@
                         const appName = row[3] || '제목없음';
                         const appDesc = row[4] || '설명이 없습니다.';
                         const appReview = row[5] || '소감이 없습니다.';
-                        const fileUrlOrCode = row[6] || ''; // 파일 링크 또는 텍스트 코드
+                        const fileUrl = row[6] || ''; 
 
                         const a = document.createElement('a');
                         a.classList.add('student-link');
                         a.innerHTML = `<strong>${studentId} ${studentName}</strong><span class="app-title">${appName}</span>`;
                         
-                        a.onclick = () => loadApp(a, studentId, studentName, appName, appDesc, appReview, fileUrlOrCode);
+                        a.onclick = () => loadApp(a, studentId, studentName, appName, appDesc, appReview, fileUrl);
                         listContainer.appendChild(a);
                     });
                 },
@@ -139,43 +139,7 @@
                 }
             });
 
-            // 구글 드라이브 파일 내용 안전 우회 읽기 함수
-            async function fetchDriveCode(urlOrCode) {
-                // 텍스트 코드가 직접 입력된 경우 그대로 반환
-                if (!urlOrCode.includes("drive.google.com") && !urlOrCode.includes("http")) {
-                    return urlOrCode; 
-                }
-
-                try {
-                    // 구글 드라이브 ID 추출
-                    const match = urlOrCode.match(/\/d\/([a-zA-Z0-9_-]+)/) || urlOrCode.match(/id=([a-zA-Z0-9_-]+)/);
-                    if (!match) return urlOrCode;
-
-                    const fileId = match[1];
-                    
-                    // 브라우저 CORS 제한 우회를 위한 프록시 API 사용
-                    const targetUrl = `https://docs.google.com/uc?export=download&id=${fileId}`;
-                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-                    
-                    const response = await fetch(proxyUrl);
-                    if (!response.ok) throw new Error("파일 다운로드 실패");
-                    
-                    return await response.text();
-                } catch (e) {
-                    console.error("드라이브 로드 에러:", e);
-                    return `
-                        <div style="text-align:center; padding:50px; color:#dc3545; font-family:sans-serif;">
-                            <h2>⚠️ 코드를 직접 표시하지 못했습니다.</h2>
-                            <p>구글 드라이브 보안 정책으로 인해 프레임 내 로드가 차단되었습니다.</p>
-                            <a href="${urlOrCode}" target="_blank" style="display:inline-block; padding:10px 20px; background:#007bff; color:white; text-decoration:none; border-radius:5px; font-weight:bold; margin-top:10px;">
-                                📂 구글 드라이브에서 직접 파일 열기
-                            </a>
-                        </div>
-                    `;
-                }
-            }
-
-            async function loadApp(element, id, name, title, desc, review, urlOrCode) {
+            function loadApp(element, id, name, title, desc, review, driveUrl) {
                 document.querySelectorAll('.student-link').forEach(el => el.classList.remove('active'));
                 element.classList.add('active');
 
@@ -184,39 +148,21 @@
                 document.getElementById('display-review').innerText = review;
                 
                 appInfoPanel.style.display = 'block';
-                iframe.style.display = 'none';
-                placeholder.style.display = 'flex';
-                statusMessage.innerHTML = "⏳ 구글 드라이브에서 학생의 HTML 파일 읽어오는 중...";
-
-                // 구글 드라이브에서 코드 가져오기
-                const code = await fetchDriveCode(urlOrCode);
-
                 placeholder.style.display = 'none';
                 iframe.style.display = 'block';
 
-                if (currentBlobUrl) {
-                    URL.revokeObjectURL(currentBlobUrl);
-                }
+                currentDirectUrl = driveUrl;
 
-                // 스크롤 및 화면 깨짐 방지 CSS 주입
-                const injectedCSS = `
-                    <style>
-                        html, body { overflow-y: auto !important; min-height: 100vh !important; }
-                        body { padding-bottom: 50px !important; }
-                    </style>
-                `;
+                // 구글 드라이브 URL에서 File ID 추출
+                const match = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || driveUrl.match(/id=([a-zA-Z0-9_-]+)/);
                 
-                let finalCode = code || '';
-                if(finalCode.includes('</head>')) {
-                    finalCode = finalCode.replace('</head>', injectedCSS + '</head>');
+                if (match && match[1]) {
+                    const fileId = match[1];
+                    // 구글 드라이브 전용 임베드 뷰어 URL로 변경
+                    iframe.src = `https://drive.google.com/file/d/${fileId}/preview`;
                 } else {
-                    finalCode += injectedCSS;
+                    iframe.src = driveUrl;
                 }
-
-                // Blob 객체 생성 및 iframe에 연결
-                const blob = new Blob([finalCode], { type: 'text/html;charset=utf-8' });
-                currentBlobUrl = URL.createObjectURL(blob);
-                iframe.src = currentBlobUrl;
             }
         });
     </script>
