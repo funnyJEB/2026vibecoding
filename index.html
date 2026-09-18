@@ -139,27 +139,39 @@
                 }
             });
 
-            // 구글 드라이브 링크에서 파일 ID 추출 후 raw HTML 가져오기
+            // 구글 드라이브 파일 내용 안전 우회 읽기 함수
             async function fetchDriveCode(urlOrCode) {
+                // 텍스트 코드가 직접 입력된 경우 그대로 반환
                 if (!urlOrCode.includes("drive.google.com") && !urlOrCode.includes("http")) {
-                    return urlOrCode; // 텍스트 코드일 경우 그대로 반환
+                    return urlOrCode; 
                 }
 
                 try {
-                    // 구글 드라이브 파일 ID 추출 패턴
+                    // 구글 드라이브 ID 추출
                     const match = urlOrCode.match(/\/d\/([a-zA-Z0-9_-]+)/) || urlOrCode.match(/id=([a-zA-Z0-9_-]+)/);
                     if (!match) return urlOrCode;
 
                     const fileId = match[1];
-                    // 구글 드라이브 파일 직접 다운로드 URL
-                    const downloadUrl = `https://docs.google.com/uc?export=download&id=${fileId}`;
                     
-                    const response = await fetch(downloadUrl);
-                    if (!response.ok) throw new Error("파일을 불러올 수 없습니다.");
+                    // 브라우저 CORS 제한 우회를 위한 프록시 API 사용
+                    const targetUrl = `https://docs.google.com/uc?export=download&id=${fileId}`;
+                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+                    
+                    const response = await fetch(proxyUrl);
+                    if (!response.ok) throw new Error("파일 다운로드 실패");
+                    
                     return await response.text();
                 } catch (e) {
-                    console.error(e);
-                    return `<h2 style="color:red; text-align:center; margin-top:50px;">코드를 불러오지 못했습니다.<br>구글 드라이브 폴더의 공유 권한('링크가 있는 모든 사용자')을 확인해 주세요.</h2>`;
+                    console.error("드라이브 로드 에러:", e);
+                    return `
+                        <div style="text-align:center; padding:50px; color:#dc3545; font-family:sans-serif;">
+                            <h2>⚠️ 코드를 직접 표시하지 못했습니다.</h2>
+                            <p>구글 드라이브 보안 정책으로 인해 프레임 내 로드가 차단되었습니다.</p>
+                            <a href="${urlOrCode}" target="_blank" style="display:inline-block; padding:10px 20px; background:#007bff; color:white; text-decoration:none; border-radius:5px; font-weight:bold; margin-top:10px;">
+                                📂 구글 드라이브에서 직접 파일 열기
+                            </a>
+                        </div>
+                    `;
                 }
             }
 
@@ -174,9 +186,9 @@
                 appInfoPanel.style.display = 'block';
                 iframe.style.display = 'none';
                 placeholder.style.display = 'flex';
-                statusMessage.innerHTML = "⏳ 학생의 HTML 파일을 구글 드라이브에서 불러오는 중입니다...";
+                statusMessage.innerHTML = "⏳ 구글 드라이브에서 학생의 HTML 파일 읽어오는 중...";
 
-                // 구글 드라이브 파일 읽어오기
+                // 구글 드라이브에서 코드 가져오기
                 const code = await fetchDriveCode(urlOrCode);
 
                 placeholder.style.display = 'none';
@@ -186,6 +198,7 @@
                     URL.revokeObjectURL(currentBlobUrl);
                 }
 
+                // 스크롤 및 화면 깨짐 방지 CSS 주입
                 const injectedCSS = `
                     <style>
                         html, body { overflow-y: auto !important; min-height: 100vh !important; }
@@ -200,6 +213,7 @@
                     finalCode += injectedCSS;
                 }
 
+                // Blob 객체 생성 및 iframe에 연결
                 const blob = new Blob([finalCode], { type: 'text/html;charset=utf-8' });
                 currentBlobUrl = URL.createObjectURL(blob);
                 iframe.src = currentBlobUrl;
