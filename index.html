@@ -39,7 +39,7 @@
     .hidden { display: none !important; }
     
     /* Modal */
-    .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; }
+    .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index: 1000; }
     .modal-content { background:white; padding:25px; border-radius:8px; text-align:center; width:300px; }
     .modal-content input { width: 100%; padding: 8px; margin: 15px 0; }
     .modal-buttons { display: flex; gap: 10px; justify-content: center; }
@@ -60,6 +60,7 @@
     <button id="teacherAuthBtn" class="teacher-btn">🔒 교사 인증</button>
     <button id="toggleCodeBtn" class="teacher-btn hidden" style="background:#F39C12;">📝 코드 보기</button>
     <button id="downloadCsvBtn" class="teacher-btn hidden" style="background:#2980B9;">📊 CSV 다운로드</button>
+    <button id="deleteSubBtn" class="teacher-btn hidden" style="background:#C0392B;">🗑️ 과제 삭제</button>
   </div>
 </header>
 
@@ -94,7 +95,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  import { getFirestore, collection, query, where, getDocs, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
   // TODO: 본인의 Firebase 설정 정보로 변경하세요
   const firebaseConfig = {
@@ -113,7 +114,9 @@
   let rawSubmissions = [];
   let latestSubmissions = [];
   let selectedStudentId = null;
-  const TEACHER_PASSWORD = "1234"; // 교사 비밀번호 설정
+  let selectedDocId = null; // 선택된 문서 ID 저장용
+  let currentStudentObj = null; // 선택된 학생 객체 저장용
+  const TEACHER_PASSWORD = "admin"; // 교사 비밀번호 설정
 
   const topicFilter = document.getElementById('topicFilter');
   const studentListEl = document.getElementById('studentList');
@@ -127,8 +130,8 @@
     const querySnapshot = await getDocs(q);
 
     rawSubmissions = [];
-    querySnapshot.forEach(doc => {
-      rawSubmissions.push({ id: doc.id, ...doc.data() });
+    querySnapshot.forEach(docSnap => {
+      rawSubmissions.push({ id: docSnap.id, ...docSnap.data() });
     });
 
     // 동일 학번 중 최신 타임스탬프 과제만 추출
@@ -168,7 +171,9 @@
       studentListEl.appendChild(item);
     });
 
-    if (!selectedStudentId && latestSubmissions.length > 0) {
+    // 현재 선택된 학생이 목록에 없거나 초기 상태일 때 첫 번째 과제 선택
+    const exists = latestSubmissions.find(s => s.studentId === selectedStudentId);
+    if (!exists && latestSubmissions.length > 0) {
       selectStudent(latestSubmissions[0]);
     }
   }
@@ -176,6 +181,8 @@
   // 특정 학생 클릭 시 렌더링
   function selectStudent(sub) {
     selectedStudentId = sub.studentId;
+    selectedDocId = sub.id;
+    currentStudentObj = sub;
     renderSidebar();
 
     document.getElementById('dispAppName').innerText = sub.appName;
@@ -194,6 +201,8 @@
     viewer.srcdoc = '';
     codeViewer.value = '';
     selectedStudentId = null;
+    selectedDocId = null;
+    currentStudentObj = null;
   }
 
   // 이벤트 리스너
@@ -207,6 +216,7 @@
   const authModal = document.getElementById('authModal');
   const toggleCodeBtn = document.getElementById('toggleCodeBtn');
   const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+  const deleteSubBtn = document.getElementById('deleteSubBtn');
 
   teacherAuthBtn.onclick = () => {
     if(isTeacher) {
@@ -215,6 +225,7 @@
       teacherAuthBtn.classList.remove('active');
       toggleCodeBtn.classList.add('hidden');
       downloadCsvBtn.classList.add('hidden');
+      deleteSubBtn.classList.add('hidden');
       codeViewer.classList.add('hidden');
       viewer.classList.remove('hidden');
     } else {
@@ -231,10 +242,39 @@
       teacherAuthBtn.classList.add('active');
       toggleCodeBtn.classList.remove('hidden');
       downloadCsvBtn.classList.remove('hidden');
+      deleteSubBtn.classList.remove('hidden');
       authModal.classList.add('hidden');
       document.getElementById('teacherPw').value = '';
     } else {
       alert('비밀번호가 올바르지 않습니다.');
+    }
+  };
+
+  // 과제 삭제 처리 기능
+  deleteSubBtn.onclick = async () => {
+    if (!selectedDocId || !currentStudentObj) {
+      return alert('삭제할 과제를 선택하세요.');
+    }
+
+    const confirmMsg = `[${currentStudentObj.studentId} ${currentStudentObj.name}] 학생의 과제를 삭제하시겠습니까?\n삭제된 과제는 복구할 수 없습니다.`;
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      deleteSubBtn.disabled = true;
+      deleteSubBtn.innerText = '삭제 중...';
+
+      // Firestore에서 해당 문서 삭제
+      await deleteDoc(doc(db, "submissions", selectedDocId));
+
+      alert('과제가 성공적으로 삭제되었습니다.');
+      selectedStudentId = null;
+      await loadData(); // 목록 새로고침
+    } catch (error) {
+      console.error('삭제 오류:', error);
+      alert('삭제 중 오류가 발생했습니다.');
+    } finally {
+      deleteSubBtn.disabled = false;
+      deleteSubBtn.innerText = '🗑️ 과제 삭제';
     }
   };
 
