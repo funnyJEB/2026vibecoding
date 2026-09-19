@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>과제 제출 시스템</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Noto Sans KR', sans-serif; background-color: #f5f7fb; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    h2 { text-align: center; color: #333; margin-bottom: 25px; }
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-weight: bold; margin-bottom: 6px; color: #555; }
+    input[type="text"], select, textarea, input[type="file"] {
+      width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;
+    }
+    textarea { height: 100px; resize: vertical; }
+    button {
+      width: 100%; padding: 12px; background-color: #4A90E2; color: white; border: none;
+      border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s;
+    }
+    button:hover { background-color: #357ABD; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>📝 웹 개발 과제 제출</h2>
+  <form id="submitForm">
+    <div class="form-group">
+      <label>과제 주제</label>
+      <select id="topic" required>
+        <option value="">주제를 선택하세요</option>
+        <option value="나만의 자기소개 페이지">나만의 자기소개 페이지</option>
+        <option value="간단한 계산기 웹앱">간단한 계산기 웹앱</option>
+        <option value="랜덤 퀴즈 게임">랜덤 퀴즈 게임</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>학번</label>
+      <input type="text" id="studentId" placeholder="예: 10101" required>
+    </div>
+    <div class="form-group">
+      <label>이름</label>
+      <input type="text" id="name" placeholder="홍길동" required>
+    </div>
+    <div class="form-group">
+      <label>앱 이름</label>
+      <input type="text" id="appName" placeholder="예: 스마트 사칙연산 계산기" required>
+    </div>
+    <div class="form-group">
+      <label>앱 주요 기능 및 장점</label>
+      <textarea id="features" placeholder="앱의 핵심 기능과 특징을 적어주세요." required></textarea>
+    </div>
+    <div class="form-group">
+      <label>제작 소감</label>
+      <textarea id="impressions" placeholder="제작 시 어려웠던 점이나 흥미로웠던 점을 적어주세요." required></textarea>
+    </div>
+    <div class="form-group">
+      <label>HTML 파일 업로드 (.html)</label>
+      <input type="file" id="htmlFile" accept=".html, .htm" required>
+    </div>
+    <button type="submit" id="submitBtn">과제 제출하기</button>
+  </form>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  // TODO: 본인의 Firebase 설정 정보로 변경하세요
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  document.getElementById('submitForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    const fileInput = document.getElementById('htmlFile');
+    const file = fileInput.files[0];
+
+    if (!file) return alert('파일을 선택해 주세요.');
+
+    btn.disabled = true;
+    btn.innerText = '제출 중...';
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const codeText = event.target.result;
+      
+      try {
+        await addDoc(collection(db, "submissions"), {
+          topic: document.getElementById('topic').value,
+          studentId: document.getElementById('studentId').value.trim(),
+          name: document.getElementById('name').value.trim(),
+          appName: document.getElementById('appName').value.trim(),
+          features: document.getElementById('features').value.trim(),
+          impressions: document.getElementById('impressions').value.trim(),
+          code: codeText,
+          timestamp: serverTimestamp()
+        });
+        
+        alert('과제가 성공적으로 제출되었습니다!');
+        document.getElementById('submitForm').reset();
+      } catch (err) {
+        console.error(err);
+        alert('제출 중 오류가 발생했습니다.');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '과제 제출하기';
+      }
+    };
+
+    reader.readAsText(file, "UTF-8");
+  });
+</script>
+</body>
+</html>
